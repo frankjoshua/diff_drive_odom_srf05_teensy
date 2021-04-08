@@ -11,6 +11,7 @@
 #include <tf/transform_broadcaster.h>
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Vector3.h"
+#include "std_msgs/Empty.h"
 #include "sensor_msgs/Range.h"
 #include <NewPing.h>
 
@@ -44,6 +45,8 @@ Motor leftMotor(2);
 Motor rightMotor(1);
 Odometry odometry;
 
+void resetCallback(const std_msgs::Empty &reset_msg);
+ros::Subscriber<std_msgs::Empty> reset_sub("reset_wheel_odom", resetCallback);
 void pidCallback(const geometry_msgs::Vector3 &vector_msg);
 ros::Subscriber<geometry_msgs::Vector3> pid_sub("pid_update", pidCallback);
 void cmdVelCallback(const geometry_msgs::Twist &cmd_msg);
@@ -52,9 +55,10 @@ ros::NodeHandle nh;
 geometry_msgs::TransformStamped t;
 tf::TransformBroadcaster broadcaster;
 
-char base_link[] = "/base_footprint";
-char odom[] = "/odom";
+char base_link[] = "/odom_wheel";
+char odom[] = "/map";
 long lastCommandTime = 0;
+long lastPingTime = 0;
 Kinematics::rpm goalRPM;
 
 geometry_msgs::Twist velTwist;
@@ -77,12 +81,18 @@ void pidCallback(const geometry_msgs::Vector3 &vector_msg)
   pidRight = PID(-PID_MAX, PID_MAX, vector_msg.x, vector_msg.y, vector_msg.z);
 }
 
+void resetCallback(const std_msgs::Empty &reset_msg)
+{
+  odometry.reset();
+}
+
 void setup()
 {
   Serial.begin(115200);
 
   //Setup ROS
   nh.initNode();
+  nh.subscribe(reset_sub);
   nh.subscribe(cmd_sub);
   nh.subscribe(pid_sub);
   nh.advertise(velPub);
@@ -124,22 +134,25 @@ void loop()
   velTwist.angular.z = vel.angular_z;
   velPub.publish(&velTwist);
 
-  for (uint8_t i = 0; i < SONAR_NUM; i++)
+  if (millis() - lastPingTime > 50)
   {
-    delay(30); // Wait 50ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
-    range.header.stamp = nh.now();
-    range.min_range = 0.01;
-    range.max_range = MAX_DISTANCE / 100;
-    range.field_of_view = 0.261799;
-    float cm = sonar[i].ping_cm();
-    if (cm == 0)
+    for (uint8_t i = 0; i < SONAR_NUM; i++)
     {
-      range.range = INFINITY;
+      // delay(30); // Wait 50ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
+      range.header.stamp = nh.now();
+      range.min_range = 0.01;
+      range.max_range = MAX_DISTANCE / 100;
+      range.field_of_view = 0.261799;
+      float cm = sonar[i].ping_cm();
+      if (cm == 0)
+      {
+        range.range = INFINITY;
+      }
+      else
+      {
+        range.range = (float)cm / 100;
+      }
+      distPub.publish(&range);
     }
-    else
-    {
-      range.range = (float)cm / 100;
-    }
-    distPub.publish(&range);
   }
 }

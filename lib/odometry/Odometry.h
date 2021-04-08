@@ -17,6 +17,8 @@ public:
 
   Position calculatePosition(double xLinearVelocity, double zAngularVelocity);
 
+  void reset();
+
 private:
   Position position;
 };

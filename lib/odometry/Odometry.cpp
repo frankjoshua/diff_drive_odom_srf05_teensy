@@ -28,3 +28,11 @@ Odometry::Position Odometry::calculatePosition(double xLinearVelocity, double zA
 
   return position;
 }
+
+void Odometry::reset()
+{
+  position.theta = 0;
+  position.x = 0;
+  position.y = 0;
+  lastUpdate = 0;
+}
