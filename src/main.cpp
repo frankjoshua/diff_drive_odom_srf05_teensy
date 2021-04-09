@@ -56,7 +56,7 @@ geometry_msgs::TransformStamped t;
 tf::TransformBroadcaster broadcaster;
 
 char base_link[] = "/odom_wheel";
-char odom[] = "/map";
+char odom[] = "/odom";
 long lastCommandTime = 0;
 long lastPingTime = 0;
 Kinematics::rpm goalRPM;
